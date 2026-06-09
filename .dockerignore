@@ -1,0 +1,17 @@
+# Version control
+.git
+.gitignore
+
+# Go build artifacts
+bin/
+tmp/
+*.exe
+*.test
+*.prof
+
+# OS files
+.DS_Store
+
+# Local secrets
+serviceAccountKey.json
+.env
