@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"sort"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
 	"github.com/neartap/server/internal/models"
-	"google.golang.org/api/option"
 )
 
 const tapsCollection = "taps"
@@ -23,25 +21,14 @@ type Store struct {
 	projectID string
 }
 
-// New initialises the Firestore client.
-// If credentialsPath is empty or the file doesn't exist, it falls back to
-// the in-memory mock store (useful for local demo without Firebase).
-func New(ctx context.Context, projectID, credentialsPath string) (*Store, error) {
-	var opts []option.ClientOption
-
-	if fi, err := os.Stat(credentialsPath); err == nil && !fi.IsDir() {
-		opts = append(opts, option.WithCredentialsFile(credentialsPath))
-		log.Printf("[store] Using service account: %s", credentialsPath)
-	} else {
-		log.Printf("[store] No service account found at %s (or it is a directory) — running in DEMO mode (in-memory)", credentialsPath)
+// New initialises the Firestore client using the provided Firebase App.
+// If app is nil, it falls back to the in-memory mock store.
+func New(ctx context.Context, app *firebase.App, projectID string) (*Store, error) {
+	if app == nil {
+		log.Printf("[store] Running in DEMO mode (in-memory)")
 		return &Store{client: nil, projectID: projectID}, nil
 	}
 
-	conf := &firebase.Config{ProjectID: projectID}
-	app, err := firebase.NewApp(ctx, conf, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("firebase.NewApp: %w", err)
-	}
 	client, err := app.Firestore(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("app.Firestore: %w", err)

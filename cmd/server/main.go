@@ -10,9 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"google.golang.org/api/option"
 
 	"github.com/neartap/server/config"
 	"github.com/neartap/server/internal/handlers"
@@ -25,17 +27,34 @@ func main() {
 	cfg := config.Load()
 	log.Printf("🚰 NearTap API starting [%s] on :%s", cfg.Env, cfg.Port)
 
-	// ── Store (Firestore / in-memory mock) ──────────────────────────────────────
+	// ── Firebase App ────────────────────────────────────────────────────────────
 	ctx := context.Background()
-	dataStore, err := store.New(ctx, cfg.FirebaseProjectID, cfg.FirebaseCredentials)
+	var app *firebase.App
+	var opts []option.ClientOption
+
+	if fi, err := os.Stat(cfg.FirebaseCredentials); err == nil && !fi.IsDir() {
+		opts = append(opts, option.WithCredentialsFile(cfg.FirebaseCredentials))
+		log.Printf("[firebase] Using service account: %s", cfg.FirebaseCredentials)
+
+		conf := &firebase.Config{ProjectID: cfg.FirebaseProjectID}
+		var err error
+		app, err = firebase.NewApp(ctx, conf, opts...)
+		if err != nil {
+			log.Fatalf("Failed to initialize Firebase App: %v", err)
+		}
+	} else {
+		log.Printf("[firebase] No service account found at %s — running in DEMO mode", cfg.FirebaseCredentials)
+	}
+
+	// ── Store (Firestore / in-memory mock) ──────────────────────────────────────
+	dataStore, err := store.New(ctx, app, cfg.FirebaseProjectID)
 	if err != nil {
 		log.Fatalf("Failed to initialise store: %v", err)
 	}
 	defer dataStore.Close()
 
 	// ── Auth middleware ─────────────────────────────────────────────────────────
-	// In demo mode (no service account), auth middleware injects a fake user
-	authMW := appMiddleware.NewFirebaseAuth(nil)
+	authMW := appMiddleware.NewFirebaseAuth(app)
 
 	// ── Handlers ────────────────────────────────────────────────────────────────
 	tapHandler := handlers.NewTapHandler(dataStore)
