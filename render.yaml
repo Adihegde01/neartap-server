@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: neartap-server
+    env: docker
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: ENV
+        value: production
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CREDENTIALS_PATH
+        value: /etc/secrets/serviceAccountKey.json
+      - key: FRONTEND_URL
+        value: http://localhost:5173 # Replace with your Vercel frontend URL later
