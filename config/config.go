@@ -30,7 +30,19 @@ func Load() *Config {
 		if _, err := os.Stat("./serviceAccountKey.json"); err == nil {
 			credPath = "./serviceAccountKey.json"
 		} else {
-			credPath = "/etc/secrets/serviceAccountKey.json"
+			// Scan /etc/secrets for any JSON file
+			files, err := os.ReadDir("/etc/secrets")
+			if err == nil {
+				for _, f := range files {
+					if !f.IsDir() && len(f.Name()) > 5 && f.Name()[len(f.Name())-5:] == ".json" {
+						credPath = "/etc/secrets/" + f.Name()
+						break
+					}
+				}
+			}
+			if credPath == "" {
+				credPath = "/etc/secrets/serviceAccountKey.json"
+			}
 		}
 	}
 	env := getEnv("ENV", "development")
