@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"encoding/json"
 	firebase "firebase.google.com/go/v4"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
@@ -80,6 +81,41 @@ func main() {
 
 	// ── Routes ──────────────────────────────────────────────────────────────────
 	r.Get("/health", handlers.HealthHandler)
+	r.Get("/api/debug", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		var statStr string
+		if fi, err := os.Stat(cfg.FirebaseCredentials); err == nil {
+			statStr = fmt.Sprintf("exists (size: %d, isDir: %v)", fi.Size(), fi.IsDir())
+		} else {
+			statStr = "error: " + err.Error()
+		}
+		var secretsFiles []string
+		if files, err := os.ReadDir("/etc/secrets"); err == nil {
+			for _, f := range files {
+				secretsFiles = append(secretsFiles, f.Name())
+			}
+		} else {
+			secretsFiles = []string{"error: " + err.Error()}
+		}
+		var curFiles []string
+		if cFiles, err := os.ReadDir("."); err == nil {
+			for _, f := range cFiles {
+				curFiles = append(curFiles, f.Name())
+			}
+		} else {
+			curFiles = []string{"error: " + err.Error()}
+		}
+		res := map[string]interface{}{
+			"FirebaseProjectID":       cfg.FirebaseProjectID,
+			"FirebaseCredentialsPath": cfg.FirebaseCredentials,
+			"CredentialsPathStat":     statStr,
+			"SecretsDirectoryFiles":   secretsFiles,
+			"CurrentDirectoryFiles":   curFiles,
+			"IsDemoMode":              app == nil,
+		}
+		importJson, _ := json.Marshal(res)
+		w.Write(importJson)
+	})
 	r.NotFound(handlers.NotFoundHandler)
 
 	r.Mount("/api/taps", tapHandler.Routes(authMW))
