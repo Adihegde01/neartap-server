@@ -14,13 +14,13 @@ type Tap struct {
 	IsFree              bool      `json:"isFree" firestore:"isFree"`
 	PaymentMethods      []string  `json:"paymentMethods" firestore:"paymentMethods"`
 	IsVerified          bool      `json:"isVerified" firestore:"isVerified"`
-	IsAccessible        bool      `json:"isAccessible" firestore:"isAccessible"`
 	WaterQuality        string    `json:"waterQuality" firestore:"waterQuality"`
 	Description         string    `json:"description" firestore:"description"`
 	LastReportedWorking time.Time `json:"lastReportedWorking" firestore:"lastReportedWorking"`
 	AddedBy             UserRef   `json:"addedBy" firestore:"addedBy"`
 	Photos              []string  `json:"photos" firestore:"photos"`
 	Confirmations       int       `json:"confirmations" firestore:"confirmations"`
+	ConfirmedBy         []string  `json:"confirmedBy" firestore:"confirmedBy"`
 	Issues              []string  `json:"issues" firestore:"issues"`
 	CreatedAt           time.Time `json:"createdAt" firestore:"createdAt"`
 	UpdatedAt           time.Time `json:"updatedAt" firestore:"updatedAt"`
@@ -48,7 +48,6 @@ type CreateTapRequest struct {
 	Hours          string   `json:"hours"`
 	IsFree         bool     `json:"isFree"`
 	PaymentMethods []string `json:"paymentMethods"`
-	IsAccessible   bool     `json:"isAccessible"`
 	WaterQuality   string   `json:"waterQuality"`
 	Description    string   `json:"description"`
 	Photos         []string `json:"photos"`

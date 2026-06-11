@@ -102,7 +102,6 @@ func (s *Store) Create(ctx context.Context, req models.CreateTapRequest, addedBy
 		IsOpen:              isOpenNow(req.Hours),
 		IsFree:              req.IsFree,
 		PaymentMethods:      req.PaymentMethods,
-		IsAccessible:        req.IsAccessible,
 		IsVerified:          false,
 		WaterQuality:        req.WaterQuality,
 		Description:         req.Description,
@@ -130,12 +129,18 @@ func (s *Store) Create(ctx context.Context, req models.CreateTapRequest, addedBy
 	return &tap, nil
 }
 
-// Confirm increments the confirmation count and auto-verifies at ≥ 3
-func (s *Store) Confirm(ctx context.Context, id string) (*models.Tap, error) {
+// Confirm increments the confirmation count and auto-verifies at ≥ 3, enforcing unique user confirmations
+func (s *Store) Confirm(ctx context.Context, id string, userID string) (*models.Tap, error) {
 	if s.client == nil {
 		for i, t := range mockTaps {
 			if t.ID == id {
-				mockTaps[i].Confirmations++
+				for _, uid := range t.ConfirmedBy {
+					if uid == userID {
+						return nil, fmt.Errorf("you have already confirmed this tap")
+					}
+				}
+				mockTaps[i].ConfirmedBy = append(mockTaps[i].ConfirmedBy, userID)
+				mockTaps[i].Confirmations = len(mockTaps[i].ConfirmedBy)
 				if mockTaps[i].Confirmations >= 3 {
 					mockTaps[i].IsVerified = true
 				}
@@ -158,9 +163,16 @@ func (s *Store) Confirm(ctx context.Context, id string) (*models.Tap, error) {
 		if err := doc.DataTo(&t); err != nil {
 			return err
 		}
-		t.Confirmations++
+		for _, uid := range t.ConfirmedBy {
+			if uid == userID {
+				return fmt.Errorf("you have already confirmed this tap")
+			}
+		}
+		t.ConfirmedBy = append(t.ConfirmedBy, userID)
+		t.Confirmations = len(t.ConfirmedBy)
 		updates := []firestore.Update{
 			{Path: "confirmations", Value: t.Confirmations},
+			{Path: "confirmedBy", Value: t.ConfirmedBy},
 			{Path: "lastReportedWorking", Value: time.Now()},
 			{Path: "updatedAt", Value: time.Now()},
 		}
@@ -213,7 +225,6 @@ func (s *Store) Update(ctx context.Context, id string, req models.CreateTapReque
 				mockTaps[i].IsOpen = isOpenNow(req.Hours)
 				mockTaps[i].IsFree = req.IsFree
 				mockTaps[i].PaymentMethods = req.PaymentMethods
-				mockTaps[i].IsAccessible = req.IsAccessible
 				mockTaps[i].WaterQuality = req.WaterQuality
 				mockTaps[i].Description = req.Description
 				mockTaps[i].Photos = req.Photos
@@ -235,7 +246,6 @@ func (s *Store) Update(ctx context.Context, id string, req models.CreateTapReque
 		{Path: "isOpen", Value: isOpenNow(req.Hours)},
 		{Path: "isFree", Value: req.IsFree},
 		{Path: "paymentMethods", Value: req.PaymentMethods},
-		{Path: "isAccessible", Value: req.IsAccessible},
 		{Path: "waterQuality", Value: req.WaterQuality},
 		{Path: "description", Value: req.Description},
 		{Path: "photos", Value: req.Photos},

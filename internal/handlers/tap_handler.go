@@ -146,9 +146,21 @@ func (h *TapHandler) CreateTap(w http.ResponseWriter, r *http.Request) {
 // Increments confirmation count; auto-verifies at 3+
 func (h *TapHandler) ConfirmTap(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	tap, err := h.store.Confirm(r.Context(), id)
+	userID := ""
+	if token := middleware.UserFromContext(r.Context()); token != nil {
+		userID = token.UID
+	} else {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	tap, err := h.store.Confirm(r.Context(), id, userID)
 	if err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
+		if err.Error() == "you have already confirmed this tap" {
+			respondError(w, http.StatusBadRequest, err.Error())
+		} else {
+			respondError(w, http.StatusNotFound, err.Error())
+		}
 		return
 	}
 	msg := "Confirmation recorded"
