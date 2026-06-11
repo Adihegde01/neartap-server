@@ -25,7 +25,14 @@ func Load() *Config {
 
 	port := getEnv("PORT", "8080")
 	projectID := getEnv("FIREBASE_PROJECT_ID", "neartap-demo")
-	credPath := getEnv("FIREBASE_CREDENTIALS_PATH", "./serviceAccountKey.json")
+	credPath := os.Getenv("FIREBASE_CREDENTIALS_PATH")
+	if credPath == "" {
+		if _, err := os.Stat("./serviceAccountKey.json"); err == nil {
+			credPath = "./serviceAccountKey.json"
+		} else {
+			credPath = "/etc/secrets/serviceAccountKey.json"
+		}
+	}
 	env := getEnv("ENV", "development")
 
 	origins := []string{
